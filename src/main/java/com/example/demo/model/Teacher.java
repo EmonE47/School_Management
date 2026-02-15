@@ -1,5 +1,8 @@
 package com.example.demo.model;
 
+import java.util.HashSet;
+import java.util.Set;
+
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -8,6 +11,7 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
 @Entity
@@ -31,6 +35,10 @@ public class Teacher {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private Role role = Role.TEACHER;
+
+    @JsonIgnore
+    @OneToMany(mappedBy = "teacher")
+    private Set<Course> courses = new HashSet<>();
 
     public Teacher() {
     }
@@ -73,5 +81,13 @@ public class Teacher {
 
     public void setRole(Role role) {
         this.role = role;
+    }
+
+    public Set<Course> getCourses() {
+        return courses;
+    }
+
+    public void setCourses(Set<Course> courses) {
+        this.courses = courses;
     }
 }

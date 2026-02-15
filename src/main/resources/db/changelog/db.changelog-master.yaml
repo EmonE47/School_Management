@@ -8,3 +8,12 @@ databaseChangeLog:
             relativeToChangelogFile: true
             splitStatements: true
             stripComments: true
+  - changeSet:
+      id: 002-add-course-teacher
+      author: codex
+      changes:
+        - sqlFile:
+            path: changes/002-add-course-teacher.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: true

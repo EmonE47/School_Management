@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -38,8 +39,8 @@ public class CourseController {
     @PostMapping
     @PreAuthorize("hasRole('TEACHER')")
     @ResponseStatus(HttpStatus.CREATED)
-    public Course createCourse(@Valid @RequestBody CourseRequest request) {
-        return schoolService.createCourse(request);
+    public Course createCourse(@Valid @RequestBody CourseRequest request, Authentication authentication) {
+        return schoolService.createCourseForTeacher(request, authentication.getName());
     }
 
     @PostMapping("/{courseId}/students/{studentId}")
@@ -49,5 +50,11 @@ public class CourseController {
         @PathVariable Long studentId
     ) {
         return schoolService.enrollStudentInCourse(studentId, courseId);
+    }
+
+    @PostMapping("/{courseId}/enroll")
+    @PreAuthorize("hasRole('STUDENT')")
+    public Student enrollCurrentStudent(@PathVariable Long courseId, Authentication authentication) {
+        return schoolService.enrollCurrentStudentInCourse(authentication.getName(), courseId);
     }
 }

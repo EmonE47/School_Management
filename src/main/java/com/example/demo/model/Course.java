@@ -9,7 +9,9 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToMany;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
 @Entity
@@ -25,6 +27,10 @@ public class Course {
 
     @Column(nullable = false, length = 200)
     private String title;
+
+    @ManyToOne
+    @JoinColumn(name = "teacher_id")
+    private Teacher teacher;
 
     @JsonIgnore
     @ManyToMany(mappedBy = "courses")
@@ -60,6 +66,14 @@ public class Course {
 
     public void setTitle(String title) {
         this.title = title;
+    }
+
+    public Teacher getTeacher() {
+        return teacher;
+    }
+
+    public void setTeacher(Teacher teacher) {
+        this.teacher = teacher;
     }
 
     public Set<Student> getStudents() {

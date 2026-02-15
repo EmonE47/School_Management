@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -12,6 +13,8 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.example.demo.model.Teacher;
+import com.example.demo.model.Course;
+import com.example.demo.model.Student;
 import com.example.demo.service.SchoolService;
 
 @RestController
@@ -28,6 +31,21 @@ public class TeacherController {
     @PreAuthorize("hasRole('TEACHER')")
     public List<Teacher> getTeachers() {
         return schoolService.getAllTeachers();
+    }
+
+    @GetMapping("/me/courses")
+    @PreAuthorize("hasRole('TEACHER')")
+    public List<Course> getMyCourses(Authentication authentication) {
+        return schoolService.getCoursesForTeacher(authentication.getName());
+    }
+
+    @GetMapping("/me/courses/{courseId}/students")
+    @PreAuthorize("hasRole('TEACHER')")
+    public List<Student> getStudentsInMyCourse(
+        @PathVariable Long courseId,
+        Authentication authentication
+    ) {
+        return schoolService.getEnrolledStudentsForTeacherCourse(authentication.getName(), courseId);
     }
 
     @DeleteMapping("/{teacherId}")

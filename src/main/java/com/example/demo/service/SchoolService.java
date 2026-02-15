@@ -86,6 +86,16 @@ public class SchoolService {
         return courseRepository.findAll();
     }
 
+    public List<Course> getCoursesForTeacher(String teacherEmail) {
+        return courseRepository.findByTeacherEmailIgnoreCase(teacherEmail.trim().toLowerCase());
+    }
+
+    public List<Course> getCoursesForStudent(String studentEmail) {
+        Student student = studentRepository.findByEmail(studentEmail.trim().toLowerCase())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+        return student.getCourses().stream().toList();
+    }
+
     @Transactional
     public Department createDepartment(DepartmentRequest request) {
         if (departmentRepository.findByNameIgnoreCase(request.name().trim()).isPresent()) {
@@ -105,6 +115,19 @@ public class SchoolService {
     }
 
     @Transactional
+    public Course createCourseForTeacher(CourseRequest request, String teacherEmail) {
+        if (courseRepository.findByCodeIgnoreCase(request.code().trim()).isPresent()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Course code already exists");
+        }
+        Teacher teacher = teacherRepository.findByEmail(teacherEmail.trim().toLowerCase())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Teacher not found"));
+
+        Course course = new Course(request.code().trim().toUpperCase(), request.title().trim());
+        course.setTeacher(teacher);
+        return courseRepository.save(course);
+    }
+
+    @Transactional
     public Student enrollStudentInCourse(Long studentId, Long courseId) {
         Student student = studentRepository.findById(studentId)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
@@ -113,6 +136,26 @@ public class SchoolService {
 
         student.getCourses().add(course);
         return studentRepository.save(student);
+    }
+
+    @Transactional
+    public Student enrollCurrentStudentInCourse(String studentEmail, Long courseId) {
+        Student student = studentRepository.findByEmail(studentEmail.trim().toLowerCase())
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Student not found"));
+        Course course = courseRepository.findById(courseId)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Course not found"));
+
+        student.getCourses().add(course);
+        return studentRepository.save(student);
+    }
+
+    public List<Student> getEnrolledStudentsForTeacherCourse(String teacherEmail, Long courseId) {
+        Course course = courseRepository.findByIdAndTeacherEmailIgnoreCase(courseId, teacherEmail.trim().toLowerCase())
+            .orElseThrow(() -> new ResponseStatusException(
+                HttpStatus.NOT_FOUND,
+                "Course not found for this teacher"
+            ));
+        return course.getStudents().stream().toList();
     }
 
     @Transactional
