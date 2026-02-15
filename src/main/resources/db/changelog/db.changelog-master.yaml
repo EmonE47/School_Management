@@ -1,0 +1,10 @@
+databaseChangeLog:
+  - changeSet:
+      id: 001-initial-schema
+      author: codex
+      changes:
+        - sqlFile:
+            path: changes/001-initial-schema.sql
+            relativeToChangelogFile: true
+            splitStatements: true
+            stripComments: true

@@ -1,0 +1,33 @@
+CREATE TABLE departments (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL UNIQUE
+);
+
+CREATE TABLE teachers (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(190) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role = 'TEACHER')
+);
+
+CREATE TABLE courses (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(50) NOT NULL UNIQUE,
+    title VARCHAR(200) NOT NULL
+);
+
+CREATE TABLE students (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(190) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL CHECK (role = 'STUDENT'),
+    department_id BIGINT NOT NULL REFERENCES departments(id) ON DELETE RESTRICT
+);
+
+CREATE TABLE student_courses (
+    student_id BIGINT NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+    course_id BIGINT NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    PRIMARY KEY (student_id, course_id)
+);
