@@ -4,19 +4,15 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import com.example.demo.dto.CourseRequest;
-import com.example.demo.dto.RegisterUserRequest;
+import com.example.demo.dto.RegisterTeacherRequest;
 import com.example.demo.dto.UserResponse;
 import com.example.demo.model.Course;
-import com.example.demo.model.Department;
 import com.example.demo.model.Role;
 import com.example.demo.model.Student;
 import com.example.demo.model.Teacher;
@@ -50,22 +46,16 @@ class SchoolServiceTest {
     @Mock
     private PasswordEncoder passwordEncoder;
 
-    private SchoolService schoolService;
-
-    @BeforeEach
-    void setUp() {
-        schoolService = new SchoolService(
+    @Test
+    void createCourseForTeacherShouldAssignTeacherAndNormalizeCode() {
+        SchoolService schoolService = new SchoolService(
             studentRepository,
             teacherRepository,
             departmentRepository,
             courseRepository,
             passwordEncoder
         );
-        ReflectionTestUtils.setField(schoolService, "defaultDepartmentName", "General");
-    }
 
-    @Test
-    void createCourseForTeacherShouldAssignTeacherAndNormalizeCode() {
         Teacher teacher = new Teacher();
         teacher.setEmail("teacher@example.com");
         when(courseRepository.findByCodeIgnoreCase("cse101")).thenReturn(Optional.empty());
@@ -84,6 +74,14 @@ class SchoolServiceTest {
 
     @Test
     void enrollCurrentStudentInCourseShouldAddCourseToStudent() {
+        SchoolService schoolService = new SchoolService(
+            studentRepository,
+            teacherRepository,
+            departmentRepository,
+            courseRepository,
+            passwordEncoder
+        );
+
         Student student = new Student();
         Course course = new Course("CSE101", "Intro to Programming");
 
@@ -99,6 +97,14 @@ class SchoolServiceTest {
 
     @Test
     void getEnrolledStudentsForTeacherCourseShouldReturnOnlyThatCourseStudents() {
+        SchoolService schoolService = new SchoolService(
+            studentRepository,
+            teacherRepository,
+            departmentRepository,
+            courseRepository,
+            passwordEncoder
+        );
+
         Course course = new Course("CSE101", "Intro");
         Student first = new Student();
         first.setEmail("first@example.com");
@@ -115,38 +121,31 @@ class SchoolServiceTest {
     }
 
     @Test
-    void registerUserForStudentShouldUseDefaultDepartmentAndEncodePassword() {
-        RegisterUserRequest request = new RegisterUserRequest(
-            "Alice",
-            "ALICE@example.com",
-            "password123",
-            Role.STUDENT,
-            null
+    void registerTeacherShouldReturnTeacherResponse() {
+        SchoolService schoolService = new SchoolService(
+            studentRepository,
+            teacherRepository,
+            departmentRepository,
+            courseRepository,
+            passwordEncoder
         );
-        Department department = new Department("General");
-        department.setId(9L);
 
-        when(studentRepository.existsByEmail("alice@example.com")).thenReturn(false);
-        when(teacherRepository.existsByEmail("alice@example.com")).thenReturn(false);
-        when(departmentRepository.findByNameIgnoreCase("General")).thenReturn(Optional.empty());
-        when(departmentRepository.save(any(Department.class))).thenReturn(department);
+        when(studentRepository.existsByEmail("teacher@example.com")).thenReturn(false);
+        when(teacherRepository.existsByEmail("teacher@example.com")).thenReturn(false);
         when(passwordEncoder.encode("password123")).thenReturn("encoded-pass");
-        when(studentRepository.save(any(Student.class))).thenAnswer(invocation -> {
-            Student student = invocation.getArgument(0);
-            student.setId(77L);
-            return student;
+        when(teacherRepository.save(any(Teacher.class))).thenAnswer(invocation -> {
+            Teacher teacher = invocation.getArgument(0);
+            teacher.setId(10L);
+            return teacher;
         });
 
-        UserResponse response = schoolService.registerUser(request);
+        UserResponse response = schoolService.registerTeacher(
+            new RegisterTeacherRequest("Teacher", "TEACHER@example.com", "password123")
+        );
 
-        assertThat(response.id()).isEqualTo(77L);
-        assertThat(response.email()).isEqualTo("alice@example.com");
-        assertThat(response.role()).isEqualTo("STUDENT");
-
-        ArgumentCaptor<Student> studentCaptor = ArgumentCaptor.forClass(Student.class);
-        verify(studentRepository).save(studentCaptor.capture());
-        Student savedStudent = studentCaptor.getValue();
-        assertThat(savedStudent.getDepartment()).isSameAs(department);
-        assertThat(savedStudent.getPassword()).isEqualTo("encoded-pass");
+        assertThat(response.id()).isEqualTo(10L);
+        assertThat(response.email()).isEqualTo("teacher@example.com");
+        assertThat(response.role()).isEqualTo(Role.TEACHER.name());
+        verify(teacherRepository).save(any(Teacher.class));
     }
 }

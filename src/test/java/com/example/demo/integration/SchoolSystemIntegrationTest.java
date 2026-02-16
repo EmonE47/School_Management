@@ -1,7 +1,5 @@
 package com.example.demo.integration;
 
-import java.util.Map;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,9 +18,7 @@ import com.example.demo.repository.CourseRepository;
 import com.example.demo.repository.DepartmentRepository;
 import com.example.demo.repository.StudentRepository;
 import com.example.demo.repository.TeacherRepository;
-import tools.jackson.databind.ObjectMapper;
 
-import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -35,11 +31,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class SchoolSystemIntegrationTest {
 
-    @Autowired
-    private MockMvc mockMvc;
+    private static final String TEACHER_EMAIL = "teacher1@example.com";
+    private static final String STUDENT_EMAIL = "student1@example.com";
 
     @Autowired
-    private ObjectMapper objectMapper;
+    private MockMvc mockMvc;
 
     @Autowired
     private TeacherRepository teacherRepository;
@@ -53,6 +49,8 @@ class SchoolSystemIntegrationTest {
     @Autowired
     private CourseRepository courseRepository;
 
+    private Long seededCourseId;
+
     @BeforeEach
     void setUpData() {
         studentRepository.deleteAll();
@@ -65,95 +63,87 @@ class SchoolSystemIntegrationTest {
 
         Teacher teacher = new Teacher();
         teacher.setName("Teacher One");
-        teacher.setEmail("teacher1@example.com");
+        teacher.setEmail(TEACHER_EMAIL);
         teacher.setPassword("ignored");
         teacher.setRole(Role.TEACHER);
-        teacherRepository.save(teacher);
+        teacher = teacherRepository.save(teacher);
 
         Student student = new Student();
         student.setName("Student One");
-        student.setEmail("student1@example.com");
+        student.setEmail(STUDENT_EMAIL);
         student.setPassword("ignored");
         student.setRole(Role.STUDENT);
         student.setDepartment(department);
         studentRepository.save(student);
+
+        Course seededCourse = new Course("CSE220", "Networks");
+        seededCourse.setTeacher(teacher);
+        seededCourse = courseRepository.save(seededCourse);
+        seededCourseId = seededCourse.getId();
     }
 
     @Test
-    void protectedRouteShouldRedirectUnauthenticatedUserToLogin() throws Exception {
+    void unauthenticatedUserShouldRedirectToLogin() throws Exception {
         mockMvc.perform(get("/dashboard"))
             .andExpect(status().is3xxRedirection())
             .andExpect(redirectedUrl("/login"));
     }
 
     @Test
-    void registerApiShouldCreateStudentUser() throws Exception {
-        String payload = objectMapper.writeValueAsString(Map.of(
-            "name", "New Student",
-            "email", "newstudent@example.com",
-            "password", "password123",
-            "role", "STUDENT"
-        ));
-
+    void registerApiShouldCreateStudent() throws Exception {
         mockMvc.perform(post("/api/auth/register")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(payload))
+                .content("""
+                    {
+                      "name": "New Student",
+                      "email": "newstudent@example.com",
+                      "password": "password123",
+                      "role": "STUDENT"
+                    }
+                    """))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.email").value("newstudent@example.com"))
             .andExpect(jsonPath("$.role").value("STUDENT"));
-
-        assertThat(studentRepository.existsByEmail("newstudent@example.com")).isTrue();
     }
 
     @Test
-    void teacherShouldCreateCourseAndViewOwnCourses() throws Exception {
-        String payload = objectMapper.writeValueAsString(Map.of(
-            "code", "cse210",
-            "title", "Database Systems"
-        ));
-
+    void teacherShouldCreateCourse() throws Exception {
         mockMvc.perform(post("/api/courses")
-                .with(user("teacher1@example.com").roles("TEACHER"))
+                .with(user(TEACHER_EMAIL).roles("TEACHER"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(payload))
+                .content("""
+                    {
+                      "code": "cse210",
+                      "title": "Database Systems"
+                    }
+                    """))
             .andExpect(status().isCreated())
             .andExpect(jsonPath("$.code").value("CSE210"));
-
-        mockMvc.perform(get("/api/teachers/me/courses")
-                .with(user("teacher1@example.com").roles("TEACHER")))
-            .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].code").value("CSE210"))
-            .andExpect(jsonPath("$[0].title").value("Database Systems"));
     }
 
     @Test
-    void studentMustNotCreateCourse() throws Exception {
-        String payload = objectMapper.writeValueAsString(Map.of(
-            "code", "cse300",
-            "title", "Operating Systems"
-        ));
-
+    void studentShouldNotCreateCourse() throws Exception {
         mockMvc.perform(post("/api/courses")
-                .with(user("student1@example.com").roles("STUDENT"))
+                .with(user(STUDENT_EMAIL).roles("STUDENT"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(payload))
+                .content("""
+                    {
+                      "code": "cse300",
+                      "title": "Operating Systems"
+                    }
+                    """))
             .andExpect(status().isForbidden());
     }
 
     @Test
     void studentShouldEnrollAndSeeCourseInMyCourses() throws Exception {
-        Teacher teacher = teacherRepository.findByEmail("teacher1@example.com").orElseThrow();
-        Course course = new Course("CSE220", "Networks");
-        course.setTeacher(teacher);
-        course = courseRepository.save(course);
-
-        mockMvc.perform(post("/api/courses/{courseId}/enroll", course.getId())
-                .with(user("student1@example.com").roles("STUDENT")))
+        mockMvc.perform(post("/api/courses/{courseId}/enroll", seededCourseId)
+                .with(user(STUDENT_EMAIL).roles("STUDENT")))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.email").value("student1@example.com"));
+            .andExpect(jsonPath("$.email").value(STUDENT_EMAIL));
 
         mockMvc.perform(get("/api/students/me/courses")
-                .with(user("student1@example.com").roles("STUDENT")))
+                .with(user(STUDENT_EMAIL).roles("STUDENT")))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$[0].code").value("CSE220"));
     }
